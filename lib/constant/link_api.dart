@@ -1,4 +1,5 @@
 String linkServerName = "http://10.0.2.2/php_restAPI";
+String linkUploadedImg = "http://10.0.2.2/php_restAPI/upload/";
 // authentication
 String linkSignupApi = "$linkServerName/authentication/singUp.php";
 String linkLoginApi = "$linkServerName/authentication/login.php";

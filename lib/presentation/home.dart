@@ -80,8 +80,8 @@ class _HomeState extends State<Home> with Crud {
                     child: Row(
                       children: [
                         Expanded(
-                          child: Image.asset(
-                            "assets/notes.png",
+                          child: Image.network(
+                            linkUploadedImg + note.noteImage,
                             width: 100,
                             height: 100,
                             fit: BoxFit.cover,

@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_php_provider/presentation/provider/user_model_provider.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../components/crud.dart';
@@ -30,17 +33,41 @@ class _AddNoteState extends State<AddUpdateNote> with Crud {
 
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
   bool isLoading = false;
+  File? imageFile;
+
+  Future<void> pickImage(ImageSource source) async {
+    final XFile? picked = await ImagePicker().pickImage(
+      source: source,
+      imageQuality: 80,
+    );
+    if (picked != null) {
+      setState(() {
+        imageFile = File(picked.path);
+      });
+    }
+  }
+
   addNot() async {
+    if (imageFile == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("please upload an image ❗"),
+          duration: Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
     setState(() {
       isLoading = true;
     });
     var result = widget.isAddPage
-        ? await postRequest(linkAddNote, {
+        ? await postRequestWithFile(linkAddNote, {
             "user_id":
                 '${context.read<UserModelProvider>().currentUser['user_id']}',
             "note_title": titleController.text,
             "note_content": contentController.text,
-          })
+          }, imageFile!)
         : await postRequest(linkUpdateNote, {
             "note_id": widget.note!.noteId.toString(),
             "note_title": titleController.text,
@@ -96,6 +123,54 @@ class _AddNoteState extends State<AddUpdateNote> with Crud {
                   myController: contentController,
                   maxLines: 10,
                 ),
+                ElevatedButton(
+                  onPressed: () {
+                    showModalBottomSheet(
+                      context: context,
+                      builder: (context) => Column(
+                        children: [
+                          if (imageFile != null)
+                            Image.file(imageFile!, height: 150),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              InkWell(
+                                onTap: () {
+                                  pickImage(ImageSource.gallery);
+                                },
+                                child: Column(
+                                  children: [
+                                    Icon(Icons.photo, size: 50),
+
+                                    Text("Image From Gallery"),
+                                  ],
+                                ),
+                              ),
+                              InkWell(
+                                onTap: () {
+                                  pickImage(ImageSource.camera);
+                                },
+                                child: Column(
+                                  children: [
+                                    Icon(Icons.camera_alt, size: 50),
+                                    Text("Image From Camera"),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green.shade200,
+                    foregroundColor: Colors.white,
+                    minimumSize: Size(double.infinity, 50),
+                  ),
+                  child: Text("Upload image"),
+                ),
+                SizedBox(height: 10),
                 ElevatedButton(
                   onPressed: () {
                     if (!isLoading) {
