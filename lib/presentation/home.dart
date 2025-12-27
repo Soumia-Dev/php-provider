@@ -16,11 +16,11 @@ class Home extends StatefulWidget {
 
 class _HomeState extends State<Home> with Crud {
   late Future notesFuture;
-
+  late int userId;
   @override
   void initState() {
     super.initState();
-    final userId = context.read<UserModelProvider>().currentUser['user_id'];
+    userId = context.read<UserModelProvider>().currentUser['user_id'];
     notesFuture = postRequest(linkGetNotes, {'user_id': '$userId'});
   }
 
@@ -94,10 +94,11 @@ class _HomeState extends State<Home> with Crud {
                             subtitle: Text(note.noteContent),
                             trailing: IconButton(
                               onPressed: () async {
-                                final result = await postRequest(
-                                  linkDeleteNote,
-                                  {"note_id": note.noteId.toString()},
-                                );
+                                final result =
+                                    await postRequest(linkDeleteNote, {
+                                      "note_id": note.noteId.toString(),
+                                      "note_img": note.noteImage,
+                                    });
                                 if (result != null) {
                                   if (result['status'] == 'success') {
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -110,7 +111,7 @@ class _HomeState extends State<Home> with Crud {
                                     );
                                     setState(() {
                                       notesFuture = postRequest(linkGetNotes, {
-                                        "user_id": '13',
+                                        "user_id": '$userId',
                                       });
                                     });
                                   }

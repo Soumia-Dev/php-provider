@@ -12,7 +12,7 @@ import '../models/note.dart';
 import 'home.dart';
 
 class AddUpdateNote extends StatefulWidget {
-  AddUpdateNote({super.key, this.note, required this.isAddPage});
+  const AddUpdateNote({super.key, this.note, required this.isAddPage});
   final bool isAddPage;
   final Note? note;
 
@@ -23,6 +23,9 @@ class AddUpdateNote extends StatefulWidget {
 class _AddNoteState extends State<AddUpdateNote> with Crud {
   late TextEditingController titleController;
   late TextEditingController contentController;
+  bool isLoading = false;
+  File? imageFile;
+  final GlobalKey<FormState> formKey = GlobalKey<FormState>();
 
   @override
   void initState() {
@@ -31,16 +34,13 @@ class _AddNoteState extends State<AddUpdateNote> with Crud {
     super.initState();
   }
 
-  final GlobalKey<FormState> formKey = GlobalKey<FormState>();
-  bool isLoading = false;
-  File? imageFile;
-
   Future<void> pickImage(ImageSource source) async {
     final XFile? picked = await ImagePicker().pickImage(
       source: source,
       imageQuality: 80,
     );
     if (picked != null) {
+      Navigator.pop(context);
       setState(() {
         imageFile = File(picked.path);
       });
@@ -48,7 +48,7 @@ class _AddNoteState extends State<AddUpdateNote> with Crud {
   }
 
   addNot() async {
-    if (imageFile == null) {
+    if (imageFile == null && widget.isAddPage) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("please upload an image ❗"),
@@ -57,7 +57,6 @@ class _AddNoteState extends State<AddUpdateNote> with Crud {
       );
       return;
     }
-
     setState(() {
       isLoading = true;
     });
@@ -68,11 +67,19 @@ class _AddNoteState extends State<AddUpdateNote> with Crud {
             "note_title": titleController.text,
             "note_content": contentController.text,
           }, imageFile!)
-        : await postRequest(linkUpdateNote, {
+        : imageFile == null
+        ? await postRequest(linkUpdateNote, {
             "note_id": widget.note!.noteId.toString(),
             "note_title": titleController.text,
             "note_content": contentController.text,
-          });
+            "note_image": widget.note!.noteImage,
+          })
+        : await postRequestWithFile(linkUpdateNote, {
+            "note_id": widget.note!.noteId.toString(),
+            "note_title": titleController.text,
+            "note_content": contentController.text,
+            "note_image": widget.note!.noteImage,
+          }, imageFile!);
 
     setState(() {
       isLoading = false;
@@ -105,101 +112,161 @@ class _AddNoteState extends State<AddUpdateNote> with Crud {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(),
-      body: ListView(
-        padding: EdgeInsets.symmetric(horizontal: 15),
-        children: [
-          Text("${widget.isAddPage ? "Add" : "Update"} Note"),
-          Form(
-            key: formKey,
-            child: Column(
-              children: [
-                TextFieldBuild(
-                  hint: 'title note',
-                  myController: titleController,
-                ),
-                TextFieldBuild(
-                  hint: 'content note',
-                  myController: contentController,
-                  maxLines: 10,
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    showModalBottomSheet(
-                      context: context,
-                      builder: (context) => Column(
+      backgroundColor: Colors.grey.shade100,
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        title: Text(
+          widget.isAddPage ? "Add Note" : "Update Note",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Form(
+          key: formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              GestureDetector(
+                onTap: () {
+                  showModalBottomSheet(
+                    context: context,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(20),
+                      ),
+                    ),
+                    builder: (_) => Container(
+                      height: 110,
+                      padding: EdgeInsets.all(5),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          if (imageFile != null)
-                            Image.file(imageFile!, height: 150),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              InkWell(
-                                onTap: () {
-                                  pickImage(ImageSource.gallery);
-                                },
-                                child: Column(
-                                  children: [
-                                    Icon(Icons.photo, size: 50),
-
-                                    Text("Image From Gallery"),
-                                  ],
-                                ),
-                              ),
-                              InkWell(
-                                onTap: () {
-                                  pickImage(ImageSource.camera);
-                                },
-                                child: Column(
-                                  children: [
-                                    Icon(Icons.camera_alt, size: 50),
-                                    Text("Image From Camera"),
-                                  ],
-                                ),
-                              ),
-                            ],
+                          _imageOption(
+                            icon: Icons.photo,
+                            label: "Gallery",
+                            onTap: () => pickImage(ImageSource.gallery),
+                          ),
+                          _imageOption(
+                            icon: Icons.camera_alt,
+                            label: "Camera",
+                            onTap: () => pickImage(ImageSource.camera),
                           ),
                         ],
                       ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green.shade200,
-                    foregroundColor: Colors.white,
-                    minimumSize: Size(double.infinity, 50),
+                    ),
+                  );
+                },
+                child: Container(
+                  height: 180,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 8,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  child: Text("Upload image"),
-                ),
-                SizedBox(height: 10),
-                ElevatedButton(
-                  onPressed: () {
-                    if (!isLoading) {
-                      if (formKey.currentState!.validate()) {
-                        addNot();
-                      }
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green.shade200,
-                    foregroundColor: Colors.white,
-                    minimumSize: Size(double.infinity, 50),
-                  ),
-                  child: isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: imageFile != null
+                        ? Image.file(imageFile!)
+                        : widget.isAddPage
+                        ? Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.add_a_photo,
+                                size: 50,
+                                color: Colors.grey,
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                "Tap to add image",
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            ],
+                          )
+                        : Image.network(
+                            linkUploadedImg + widget.note!.noteImage,
+                            fit: BoxFit.fill,
                           ),
-                        )
-                      : Text(widget.isAddPage ? "Add" : "Update"),
+                  ),
                 ),
-              ],
-            ),
+              ),
+              SizedBox(height: 20),
+              TextFieldBuild(hint: "Note title", myController: titleController),
+              SizedBox(height: 15),
+              TextFieldBuild(
+                hint: "Note content",
+                myController: contentController,
+                maxLines: 6,
+              ),
+              SizedBox(height: 25),
+              ElevatedButton(
+                onPressed: isLoading
+                    ? null
+                    : () {
+                        if (formKey.currentState!.validate()) {
+                          addNot();
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: isLoading
+                    ? SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : Text(
+                        widget.isAddPage ? "Add Note" : "Update Note",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
+}
+
+Widget _imageOption({
+  required IconData icon,
+  required String label,
+  required VoidCallback onTap,
+}) {
+  return InkWell(
+    onTap: onTap,
+    child: Column(
+      children: [
+        CircleAvatar(
+          radius: 30,
+          backgroundColor: Colors.green.shade100,
+          child: Icon(icon, color: Colors.green, size: 28),
+        ),
+        SizedBox(height: 8),
+        Text(label),
+      ],
+    ),
+  );
 }
